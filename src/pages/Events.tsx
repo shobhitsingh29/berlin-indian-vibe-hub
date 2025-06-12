@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Layout/Header';
 import EventCard from '@/components/Events/EventCard';
 import EventFilters from '@/components/Events/EventFilters';
