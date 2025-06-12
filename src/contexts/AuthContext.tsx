@@ -15,6 +15,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  updateProfile: (updatedUser: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +42,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
   }, []);
+
+  const updateProfile = async (updatedUser: Partial<User>) => {
+    try {
+      if (!user) return;
+      
+      // Update Firebase auth user
+      await auth.currentUser?.updateProfile({
+        displayName: updatedUser.displayName,
+        photoURL: updatedUser.photoURL
+      });
+
+      // Update our local state
+      setUser(prev => prev && {
+        ...prev,
+        ...updatedUser
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  };
 
   const signInWithGoogle = async () => {
     try {
@@ -72,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut: handleSignOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut: handleSignOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

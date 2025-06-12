@@ -7,12 +7,13 @@ interface ConfigContextType {
     isLoading: boolean;
     error: string | null;
     refreshConfig: () => void;
+    getConfigValue: (key: string) => any;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
-export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
-    const [config, setConfig] = useState<ConfigResponse | null>(null);
+const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
+    const [config, setConfig] = useState<Configuration | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -31,12 +32,23 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const getConfigValue = (key: string) => {
+        if (!config) return null;
+        return config[key];
+    };
+
     useEffect(() => {
         refreshConfig();
     }, []);
 
     return (
-        <ConfigContext.Provider value={{ config, isLoading, error, refreshConfig }}>
+        <ConfigContext.Provider value={{ 
+            config,
+            isLoading,
+            error,
+            refreshConfig,
+            getConfigValue
+        }}>
             {children}
         </ConfigContext.Provider>
     );
@@ -45,6 +57,12 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
 export const useConfig = () => {
     const context = useContext(ConfigContext);
     if (context === undefined) {
+        throw new Error('useConfig must be used within a ConfigProvider');
+    }
+    return context;
+};
+
+export default ConfigProvider;
         throw new Error('useConfig must be used within a ConfigProvider');
     }
     return context;

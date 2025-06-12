@@ -4,6 +4,82 @@ import auth from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
 
 const router = express.Router();
+import { validateSearch, validateSearchResults } from '../middleware/searchValidation.js';
+
+// Search events
+router.get('/search', validateSearch, validateSearchResults, async (req, res) => {
+    try {
+        const {
+            query,
+            category = 'all',
+            startDate,
+            endDate,
+            location,
+            page = 1,
+            limit = 10,
+            sort = 'date',
+            order = 'asc'
+        } = req.body;
+
+        const searchQuery = {};
+        const searchOptions = {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            sort: {
+                [sort]: order === 'asc' ? 1 : -1
+            }
+        };
+
+        // Add search filters
+        if (query) {
+            searchQuery.$or = [
+                { title: { $regex: query, $options: 'i' } },
+                { description: { $regex: query, $options: 'i' } }
+            ];
+        }
+
+        if (category !== 'all') {
+            searchQuery.category = category;
+        }
+
+        if (startDate && endDate) {
+            searchQuery.date = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate)
+            };
+        } else if (startDate) {
+            searchQuery.date = { $gte: new Date(startDate) };
+        } else if (endDate) {
+            searchQuery.date = { $lte: new Date(endDate) };
+        }
+
+        if (location) {
+            searchQuery.location = { $regex: location, $options: 'i' };
+        }
+
+        // Add pagination and sorting
+        const events = await Event.find(searchQuery)
+            .populate('organizer', 'name')
+            .sort(searchOptions.sort)
+            .skip((searchOptions.page - 1) * searchOptions.limit)
+            .limit(searchOptions.limit);
+
+        const total = await Event.countDocuments(searchQuery);
+        const totalPages = Math.ceil(total / searchOptions.limit);
+
+        res.json({
+            data: events,
+            meta: {
+                total,
+                page: searchOptions.page,
+                limit: searchOptions.limit,
+                totalPages
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // Middleware for event validation
 const validateEvent = [

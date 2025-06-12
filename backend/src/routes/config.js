@@ -1,11 +1,12 @@
 import express from 'express';
 import Configuration from '../models/Configuration.js';
 import auth from '../middleware/auth.js';
+import { Config, CONFIG_KEYS } from '../models/Config';
 
 const router = express.Router();
 
 // Get configuration (public endpoint)
-router.get('/', async (req, res) => {
+router.get('/config', async (req, res) => {
     try {
         const config = await Configuration.findOne();
         if (!config) {

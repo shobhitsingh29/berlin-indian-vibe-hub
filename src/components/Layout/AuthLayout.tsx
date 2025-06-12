@@ -3,15 +3,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
 
-export function AuthLayout() {
-  return (
-    <AuthProvider>
-      <AuthLayoutContent />
-    </AuthProvider>
-  );
-}
-
-function AuthLayoutContent() {
+function InnerLayout() {
   const { user, signInWithGoogle, signOut } = useAuth();
 
   return (
@@ -26,33 +18,32 @@ function AuthLayoutContent() {
                   onClick={signInWithGoogle}
                   className="bg-orange-500 hover:bg-orange-600"
                 >
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Sign in with Google
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign In
                 </Button>
               ) : (
-                <div className="flex items-center space-x-2">
-                  <img
-                    src={user.photoURL || ''}
-                    alt={user.displayName || ''}
-                    className="h-8 w-8 rounded-full"
-                  />
-                  <Button
-                    onClick={signOut}
-                    variant="outline"
-                    className="text-orange-600"
-                  >
-                    Sign out
-                  </Button>
-                </div>
+                <Button
+                  onClick={signOut}
+                  className="bg-red-500 hover:bg-red-600"
+                >
+                  Sign Out
+                </Button>
               )}
             </div>
           </div>
         </div>
       </nav>
-
-      <main className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
         <Outlet />
-      </main>
+      </div>
     </div>
+  );
+}
+
+export function AuthLayout() {
+  return (
+    <AuthProvider>
+      <InnerLayout />
+    </AuthProvider>
   );
 }

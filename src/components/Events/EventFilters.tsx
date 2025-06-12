@@ -12,6 +12,7 @@ interface EventFiltersProps {
   filters: EventFilters;
   onFiltersChange: (filters: EventFilters) => void;
   resultsCount: number;
+  searchConfig: { fields: string[], sortOptions: string[] } | null;
 }
 
 const EventFilters = ({ filters, onFiltersChange, resultsCount }: EventFiltersProps) => {

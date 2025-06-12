@@ -20,6 +20,36 @@ const userSchema = new mongoose.Schema({
         required: true,
         minlength: 6
     },
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    role: {
+        type: String,
+        enum: ['user', 'event_creator', 'admin'],
+        default: 'user'
+    },
+    preferences: [{
+        type: String,
+        enum: ['Music & Dance', 'Food & Dining', 'Spiritual', 'Festival', 'Workshop', 'Other']
+    }],
+    starredEvents: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Event'
+    }],
+    bio: {
+        type: String,
+        trim: true
+    },
+    location: {
+        type: String,
+        trim: true
+    },
+    avatar: {
+        type: String,
+        trim: true
+    },
     createdAt: {
         type: Date,
         default: Date.now

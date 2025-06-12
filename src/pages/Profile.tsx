@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,60 +10,58 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Star, Edit, Save, Mail, MapPin, Calendar, Heart } from 'lucide-react';
-import Header from '@/components/Layout/Header';
+import { useAuth } from '@/contexts/AuthContext';
 import { EVENT_CATEGORIES } from '@/types';
 
-// Mock user data - in real app this would come from authentication
-const mockUser = {
-  userId: '1',
-  name: 'Priya Sharma',
-  email: 'priya.sharma@email.com',
-  googleId: 'google123',
-  role: 'event_creator' as const,
-  preferences: ['Music & Dance', 'Food & Dining', 'Spiritual'],
-  starredEvents: ['1', '2'],
-  createdAt: '2024-01-15',
-  avatar: undefined,
-  bio: 'Passionate about Indian classical music and cultural events in Berlin. Love connecting with the community!',
-  location: 'Mitte, Berlin'
-};
-
-// Mock starred events
-const mockStarredEvents = [
-  {
-    eventId: '1',
-    title: 'Diwali Festival 2024',
-    description: 'Celebrate the festival of lights with music, dance, and traditional food.',
-    category: 'Festival',
-    dateTime: '2024-11-12T18:00:00Z',
-    location: 'Tempodrom, Berlin',
-    cost: 'Free',
-    createdBy: 'organizer1',
-    createdAt: '2024-10-01',
-    isStarred: true
-  },
-  {
-    eventId: '2',
-    title: 'Classical Indian Music Concert',
-    description: 'An evening of soulful ragas and traditional instruments.',
-    category: 'Music & Dance',
-    dateTime: '2024-12-05T19:30:00Z',
-    location: 'Philharmonie Berlin',
-    cost: '€25 - €45',
-    createdBy: 'organizer2',
-    createdAt: '2024-11-01',
-    isStarred: true
-  }
-];
-
 const Profile = () => {
+  const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [editedUser, setEditedUser] = useState(mockUser);
+  const [editedUser, setEditedUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleSave = () => {
-    console.log('Saving user data:', editedUser);
-    setIsEditing(false);
-    // In real app, this would update the user data via API
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch('/api/users/profile');
+        if (!response.ok) throw new Error('Failed to fetch profile');
+        const data = await response.json();
+        setEditedUser(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editedUser),
+      });
+
+      if (!response.ok) throw new Error('Failed to update profile');
+      const updatedUser = await response.json();
+      setEditedUser(updatedUser);
+      setIsEditing(false);
+      updateProfile(updatedUser);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePreferenceToggle = (category: string) => {
