@@ -1,17 +1,78 @@
 import { Configuration } from '@/types/config';
 
-export interface ConfigResponse extends Configuration {
+// Extend the base Configuration type with our additional fields
+type ExtendedConfig = Configuration & {
     lastUpdated: string;
-    minTitleLength: number;
-    maxTitleLength: number;
-    minDescriptionLength: number;
-    maxDescriptionLength: number;
-    eventCategories: string[];
-}
+    searchFilters?: {
+        fields: string[];
+        sortOptions: string[];
+    };
+};
+
+const DEFAULT_CONFIG: ExtendedConfig = {
+    // Required Configuration fields
+    apiBaseUrl: 'http://localhost:3001/api',
+    version: '1.0.0',
+    eventCategories: ['Music', 'Food', 'Art', 'Sports', 'Technology'],
+    eventStatuses: ['draft', 'published', 'cancelled'],
+    timeFormat: 'HH:mm',
+    dateFormat: 'yyyy-MM-dd',
+    minPrice: 0,
+    maxPrice: 1000,
+    currencySymbol: '€',
+    maxTickets: 1000,
+    minTickets: 1,
+    defaultLocation: 'Berlin, Germany',
+    imageUploadSizeLimit: 5 * 1024 * 1024, // 5MB
+    allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif'],
+    minTitleLength: 3,
+    maxTitleLength: 100,
+    minDescriptionLength: 10,
+    maxDescriptionLength: 5000,
+    maxImagesPerPost: 10,
+    maxImageSize: 5 * 1024 * 1024,
+    validImageTypes: ['image/jpeg', 'image/png', 'image/gif'],
+    
+    // UI Text
+    loginMessage: 'Please log in to continue',
+    loginButtonText: 'Log In',
+    postPrompt: 'Share your event',
+    postPlaceholder: 'What\'s happening?',
+    addPhotoButtonText: 'Add Photo',
+    postButtonText: 'Post',
+    searchPlaceholder: 'Search events...',
+    filtersButtonText: 'Filters',
+    eventLabel: 'Event',
+    clearFiltersButtonText: 'Clear Filters',
+    searchBadgeText: 'Search',
+    categoryBadgeText: 'Category',
+    locationBadgeText: 'Location',
+    dateRangeBadgeText: 'Date Range',
+    categoryLabel: 'Category',
+    categoryPlaceholder: 'Select a category',
+    allCategoriesText: 'All Categories',
+    locationLabel: 'Location',
+    dateRangeLabel: 'Date Range',
+    pageTitle: 'Events',
+    thisWeekButtonText: 'This Week',
+    nearMeButtonText: 'Near Me',
+    retryButtonText: 'Retry',
+    loadingSkeletonCount: 6,
+    compactEventCards: false,
+    
+    // Our additional fields
+    lastUpdated: new Date().toISOString(),
+    searchFilters: {
+        fields: ['title', 'description', 'location', 'category', 'date'],
+        sortOptions: ['date', 'title', 'price']
+    }
+};
 
 export class ConfigService {
     private static instance: ConfigService;
-    private config: ConfigResponse | null = null;
+    private config: ExtendedConfig | null = null;
+    private isInitializing: boolean = false;
+    private initPromise: Promise<ExtendedConfig> | null = null;
 
     private constructor() {}
 
@@ -22,26 +83,54 @@ export class ConfigService {
         return ConfigService.instance;
     }
 
-    async fetchConfig(): Promise<ConfigResponse> {
+    private getApiUrl(): string {
+        return import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    }
+
+    async fetchConfig(): Promise<ExtendedConfig> {
+        // Return cached config if available
         if (this.config) {
             return this.config;
         }
 
-        try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/config`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch configuration');
-            }
-            const data = await response.json();
-            this.config = data;
-            return data;
-        } catch (error) {
-            console.error('Error fetching config:', error);
-            throw error;
+        // If we're already initializing, return the existing promise
+        if (this.initPromise) {
+            return this.initPromise;
         }
-    }
 
-    getConfig(): ConfigResponse | null {
+        // Set up the initialization promise
+        this.initPromise = (async () => {
+            try {
+                const apiUrl = this.getApiUrl();
+                console.log('Fetching config from:', `${apiUrl}/config`);
+                
+                const response = await fetch(`${apiUrl}/config`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch configuration: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                if (!data) {
+                    throw new Error('Empty configuration received');
+                }
+                
+                // Merge with defaults to ensure all required fields are present
+                this.config = { ...DEFAULT_CONFIG, ...data };
+                return this.config;
+            } catch (error) {
+                console.error('Error fetching config, using defaults:', error);
+                this.config = { ...DEFAULT_CONFIG };
+                return this.config;
+            } finally {
+                this.isInitializing = false;
+                this.initPromise = null;
+            }
+        })();
+
+        return this.initPromise;
+    }
+    
+    getConfig(): ExtendedConfig | null {
         return this.config;
     }
 

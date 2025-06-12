@@ -1,21 +1,37 @@
 import express from 'express';
 import Configuration from '../models/Configuration.js';
 import auth from '../middleware/auth.js';
-import { Config, CONFIG_KEYS } from '../models/Config';
+import { Config, CONFIG_KEYS } from '../models/Config.js';
 
 const router = express.Router();
 
 // Get configuration (public endpoint)
 router.get('/config', async (req, res) => {
     try {
-        const config = await Configuration.findOne();
+        console.log('Fetching configuration...');
+        let config = await Configuration.findOne();
+        
         if (!config) {
+            console.log('No config found, creating default configuration...');
             await Configuration.ensureSingle();
-            return res.json(await Configuration.findOne());
+            config = await Configuration.findOne();
+            console.log('Default configuration created:', config);
         }
+        
+        if (!config) {
+            console.error('Failed to create default configuration');
+            return res.status(500).json({ error: 'Failed to initialize configuration' });
+        }
+        
+        console.log('Sending configuration:', config);
         res.json(config);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error in /config endpoint:', error);
+        res.status(500).json({ 
+            error: 'Server error',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 

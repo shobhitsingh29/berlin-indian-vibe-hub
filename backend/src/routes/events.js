@@ -6,8 +6,16 @@ import { body, validationResult } from 'express-validator';
 const router = express.Router();
 import { validateSearch, validateSearchResults } from '../middleware/searchValidation.js';
 
-// Search events
-router.get('/search', validateSearch, validateSearchResults, async (req, res) => {
+// Debug route registration
+console.log('Registering POST /api/events/search route');
+
+// Search events (supports both GET and POST)
+router.post('/search', validateSearch, validateSearchResults, async (req, res) => {
+    console.log('POST /api/events/search endpoint hit');
+    // Also support GET for backward compatibility
+    if (Object.keys(req.query).length > 0) {
+        req.body = { ...req.body, ...req.query };
+    }
     try {
         const {
             query,
@@ -19,7 +27,7 @@ router.get('/search', validateSearch, validateSearchResults, async (req, res) =>
             limit = 10,
             sort = 'date',
             order = 'asc'
-        } = req.body;
+        } = req.body || {}; // Handle empty body case
 
         const searchQuery = {};
         const searchOptions = {

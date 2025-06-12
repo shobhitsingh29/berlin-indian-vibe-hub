@@ -52,6 +52,7 @@ export interface EventUpdateInput {
 }
 
 export interface EventFilters {
+    // Search and filter fields
     search?: string;
     category?: string;
     location?: string;
@@ -59,4 +60,12 @@ export interface EventFilters {
         start: string;
         end: string;
     };
+    
+    // Pagination
+    page?: number;
+    limit?: number;
+    
+    // Sorting
+    sort?: string;
+    order?: 'asc' | 'desc';
 }

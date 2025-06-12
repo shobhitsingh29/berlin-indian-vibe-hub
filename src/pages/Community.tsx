@@ -1,112 +1,161 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Layout/Header';
 import CreatePost from '@/components/Community/CreatePost';
 import CommunityPost from '@/components/Community/CommunityPost';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, MessageCircle, TrendingUp, Sparkles } from 'lucide-react';
+import { Users, MessageCircle, TrendingUp, Sparkles, AlertCircle } from 'lucide-react';
 import { CommunityPost as CommunityPostType } from '@/types';
+import { getPosts, createPost, likePost, deletePost } from '@/services/api/posts';
 
-// Mock data
-const mockPosts = [
-  {
-    postId: '1',
-    userId: 'user1',
-    userName: 'Priya Sharma',
-    content: 'Just attended the Bharatanatyam workshop and it was incredible! The instructor was amazing and so patient with beginners. Highly recommend for anyone interested in classical dance. The studio was beautiful and the other participants were so welcoming. Already signed up for next week! 🕺✨',
-    createdAt: '2024-10-20T14:30:00Z',
-    likes: 12,
-    isLiked: false,
-    images: ['https://images.unsplash.com/photo-1518611012118-696072aa579a?w=500']
-  },
-  {
-    postId: '2',
-    userId: 'user2',
-    userName: 'Raj Patel',
-    content: 'Looking for people to share a ride to the Diwali festival at Tempodrom this weekend. Anyone from Kreuzberg area interested? We can split the cost and have great company! Let me know if you want to join. 🚗🪔',
-    createdAt: '2024-10-20T10:15:00Z',
-    likes: 8,
-    isLiked: true,
-  },
-  {
-    postId: '3',
-    userId: 'user3',
-    userName: 'Ankita Singh',
-    content: 'Amazing Indian street food festival today at Mauerpark! The chaat was absolutely delicious and reminded me of home. The organizers did such a great job. Already looking forward to the next one! If you missed it, definitely catch the next one. 🍛❤️',
-    createdAt: '2024-10-19T18:45:00Z',
-    likes: 15,
-    isLiked: false,
-  },
-  {
-    postId: '4',
-    userId: 'user4',
-    userName: 'Vikram Mehta',
-    content: 'Does anyone know of good places to buy authentic Indian spices in Berlin? I\'m planning to cook a big meal for friends but need to find quality ingredients. Any recommendations would be greatly appreciated! 🌶️',
-    createdAt: '2024-10-19T16:20:00Z',
-    likes: 6,
-    isLiked: false,
-  },
-  {
-    postId: '5',
-    userId: 'user5',
-    userName: 'Meera Krishnan',
-    content: 'The yoga session in Tiergarten this morning was so peaceful! Perfect way to start the weekend. The instructor spoke both English and Hindi which made it accessible for everyone. Nature + yoga + community = perfect Saturday morning! 🧘‍♀️🌳',
-    createdAt: '2024-10-19T12:10:00Z',
-    likes: 9,
-    isLiked: true,
-  }
-];
-
-const mockUser = {
-  name: 'Anjali Sharma',
-  email: 'anjali@example.com',
-  avatar: 'https://ui-avatars.com/api/?name=Anjali+Sharma&background=f97316&color=fff',
-  role: 'viewer'
-};
+interface ApiPost {
+  _id: string;
+  userId: {
+    _id: string;
+    name: string;
+  };
+  content: string;
+  images: string[];
+  likes: number;
+  likedBy: string[];
+  comments: any[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 const Community = () => {
-  const [posts, setPosts] = useState([]);
+  const { user } = useAuth();
+  const [posts, setPosts] = useState<CommunityPostType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const fetchPosts = async (page = 1, append = false) => {
+    try {
+      setError(null);
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const response = await getPosts(page);
+      const newPosts = response.posts.map((post: ApiPost) => ({
+        postId: post._id,
+        userId: post.userId._id,
+        userName: post.userId.name,
+        content: post.content,
+        images: post.images || [],
+        likes: post.likes,
+        isLiked: post.likedBy?.includes(user?._id || ''),
+        createdAt: post.createdAt,
+        comments: post.comments?.length || 0
+      }));
+
+      if (append) {
+        setPosts(prev => [...prev, ...newPosts]);
+      } else {
+        setPosts(newPosts);
+      }
+      
+      setHasMore(response.currentPage < response.totalPages);
+    } catch (err: any) {
+      console.error('Error fetching posts:', err);
+      setError(err.message || 'Failed to load posts. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setPosts(mockPosts);
-      setIsLoading(false);
-    }, 1000);
+    fetchPosts(1);
   }, []);
 
-  const handleCreatePost = async (content: string, images?: File[]) => {
-    // Simulate API call with image upload
-    const imageUrls = images?.map((_, index) => 
-      `https://images.unsplash.com/photo-${1500000000000 + index}?w=500`
-    ) || [];
-    
-    const newPost = {
-      postId: Date.now().toString(),
-      userId: mockUser.email,
-      userName: mockUser.name,
-      content,
-      createdAt: new Date().toISOString(),
-      likes: 0,
-      isLiked: false,
-      images: imageUrls,
-    };
-    
-    setPosts(prev => [newPost, ...prev]);
+  const handleCreatePost = async (content: string, images: File[] = []) => {
+    try {
+      // In a real app, you would upload images first and get their URLs
+      // For now, we'll just use the content
+      const newPost = await createPost(content, []); // Pass empty array for images for now
+      
+      // Add the new post to the beginning of the list
+      setPosts(prev => [{
+        postId: newPost._id,
+        userId: newPost.userId._id,
+        userName: newPost.userId.name,
+        content: newPost.content,
+        images: newPost.images || [],
+        likes: 0,
+        isLiked: false,
+        createdAt: newPost.createdAt,
+        comments: 0
+      }, ...prev]);
+    } catch (err) {
+      console.error('Error creating post:', err);
+      setError('Failed to create post. Please try again.');
+    }
   };
 
   const handleLikePost = async (postId: string) => {
-    setPosts(prev => prev.map(post => {
-      if (post.postId === postId) {
-        return {
-          ...post,
-          isLiked: !post.isLiked,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-        };
-      }
-      return post;
-    }));
+    try {
+      // Optimistic update
+      setPosts(prev => prev.map(post => {
+        if (post.postId === postId) {
+          const isLiked = !post.isLiked;
+          return {
+            ...post,
+            likes: isLiked ? post.likes + 1 : post.likes - 1,
+            isLiked
+          };
+        }
+        return post;
+      }));
+
+      // Call API
+      await likePost(postId);
+    } catch (err) {
+      console.error('Error toggling like:', err);
+      // Revert optimistic update on error
+      setPosts(prev => prev.map(post => {
+        if (post.postId === postId) {
+          return {
+            ...post,
+            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
+            isLiked: !post.isLiked
+          };
+        }
+        return post;
+      }));
+      setError('Failed to update like. Please try again.');
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    
+    try {
+      // Optimistic update
+      setPosts(prev => prev.filter(post => post.postId !== postId));
+      
+      // Call API
+      await deletePost(postId);
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      setError('Failed to delete post. Please try again.');
+      // Re-fetch posts to restore the correct state
+      fetchPosts(1);
+    }
+  };
+
+  const loadMorePosts = () => {
+    if (!isLoadingMore && hasMore) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchPosts(nextPage, true);
+    }
   };
 
   if (isLoading) {
