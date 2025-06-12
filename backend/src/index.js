@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+// Import routes
+import userRoutes from './routes/users.js';
+
 dotenv.config();
 
 const app = express();
@@ -23,6 +26,9 @@ const connectDB = async () => {
 };
 
 // Routes
+app.use('/api/users', userRoutes);
+
+// Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
