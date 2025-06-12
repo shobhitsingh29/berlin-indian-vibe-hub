@@ -7,6 +7,7 @@ interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  role: 'user' | 'event_creator' | 'admin';
 }
 
 interface AuthContextType {
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
+          role: 'user'
         });
       } else {
         setUser(null);
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: result.user.email,
           displayName: result.user.displayName,
           photoURL: result.user.photoURL,
+          role: 'user'
         });
       }
     } catch (error) {

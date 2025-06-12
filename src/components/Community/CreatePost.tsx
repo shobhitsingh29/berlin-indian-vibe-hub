@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, Image, X } from 'lucide-react';
+import { useConfig } from '@/contexts/ConfigContext';
 
 interface CreatePostProps {
   user?: {
@@ -20,27 +21,30 @@ const CreatePost = ({ user, onSubmit }: CreatePostProps) => {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { config } = useConfig();
+
+  if (!config) {
+    return <div>Loading...</div>;
+  }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const maxImages = 4;
     
-    if (selectedImages.length + files.length > maxImages) {
-      alert(`You can only upload up to ${maxImages} images`);
+    if (selectedImages.length + files.length > config.maxImagesPerPost) {
+      alert(`You can only upload up to ${config.maxImagesPerPost} images`);
       return;
     }
 
     const validFiles = files.filter(file => {
-      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const maxSize = config.maxImageSize * 1024 * 1024; // Convert to bytes
       
-      if (!validTypes.includes(file.type)) {
-        alert('Please select valid image files (JPEG, PNG, GIF, WebP)');
+      if (!config.validImageTypes.includes(file.type)) {
+        alert(`Please select valid image files (${config.validImageTypes.join(', ')})`);
         return false;
       }
       
       if (file.size > maxSize) {
-        alert('Image size should be less than 5MB');
+        alert(`Image size should be less than ${config.maxImageSize}MB`);
         return false;
       }
       
@@ -89,9 +93,9 @@ const CreatePost = ({ user, onSubmit }: CreatePostProps) => {
     return (
       <Card className="eventbrite-shadow">
         <CardContent className="p-6 text-center">
-          <p className="text-gray-600">Please login to join the community discussion</p>
+          <p className="text-gray-600">{config.loginMessage}</p>
           <Button className="mt-4 bg-primary hover:bg-primary/90">
-            Continue with Google
+            {config.loginButtonText}
           </Button>
         </CardContent>
       </Card>
@@ -101,88 +105,75 @@ const CreatePost = ({ user, onSubmit }: CreatePostProps) => {
   return (
     <Card className="eventbrite-shadow">
       <CardContent className="p-6">
-        <form onSubmit={handleSubmit}>
-          <div className="flex items-start space-x-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=ff5722&color=fff`} />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                {user.name.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1">
-              <Textarea
-                placeholder="Ask a question, share a tip, or connect with the community..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="min-h-[100px] resize-none border-gray-200 focus:ring-primary focus:border-primary"
-                maxLength={500}
-              />
-              
-              {/* Image Previews */}
-              {imagePreviews.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={preview}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageSelect}
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={selectedImages.length >= 4}
-                    className="text-primary hover:bg-primary/10"
-                  >
-                    <Image className="h-4 w-4 mr-1" />
-                    Photo
-                  </Button>
-                  <div className="text-sm text-gray-500">
-                    {content.length}/500 characters
-                  </div>
-                </div>
-                
-                <Button
-                  type="submit"
+        <div className="flex items-center space-x-4 mb-4">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={user?.avatar} />
+            <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h3 className="font-semibold">{user?.name}</h3>
+            <p className="text-sm text-gray-500">{config.postPrompt}</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={config.postPlaceholder}
+            className="min-h-[100px]"
+          />
+
+          <div className="flex flex-wrap gap-2">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={preview}
+                  alt={`Preview ${index + 1}`}
+                  className="w-24 h-24 object-cover rounded-lg"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeImage(index);
+                  }}
+                  className="absolute -top-2 -right-2 bg-white rounded-full p-1 hover:bg-gray-100"
                   disabled={(!content.trim() && selectedImages.length === 0) || isSubmitting}
-                  className="bg-primary hover:bg-primary/90"
                 >
-                  {isSubmitting ? (
-                    'Posting...'
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-1" />
-                      Post
-                    </>
-                  )}
-                </Button>
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-            </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept={config.validImageTypes.join(',')}
+                multiple
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }}
+              >
+                <Image className="w-4 h-4 mr-2" />
+                {config.addPhotoButtonText}
+              </Button>
+            </label>
+            <Button
+              type="submit"
+              disabled={isSubmitting || (!content.trim() && selectedImages.length === 0)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {isSubmitting ? 'Posting...' : config.postButtonText}
+            </Button>
           </div>
         </form>
       </CardContent>

@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, Calendar, MapPin, ExternalLink, Heart, Users } from 'lucide-react';
-import { Event } from '@/types';
+import { Event } from '@/types/event';
 import { format } from 'date-fns';
+import { useConfig } from '@/contexts/ConfigContext';
 
 interface EventCardProps {
   event: Event;
@@ -16,29 +17,28 @@ interface EventCardProps {
 const EventCard = ({ event, onStar, compact = false }: EventCardProps) => {
   const [isStarred, setIsStarred] = useState(event.isStarred || false);
   const [isStarring, setIsStarring] = useState(false);
+  const { config } = useConfig();
 
   const handleStar = async (e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
-    
-    if (isStarring) return;
-    
     setIsStarring(true);
-    setIsStarred(!isStarred);
-    
     try {
       await onStar?.(event.eventId);
-    } catch (error) {
-      // Revert on error
       setIsStarred(!isStarred);
+    } catch (error) {
+      console.error('Error starring event:', error);
     } finally {
       setIsStarring(false);
     }
   };
 
+  if (!config) {
+    return <div>Loading...</div>;
+  }
+
   const eventDate = new Date(event.dateTime);
-  const formattedDate = format(eventDate, 'MMM dd');
-  const formattedTime = format(eventDate, 'HH:mm');
+  const formattedDate = format(eventDate, config.dateFormat.replace('YYYY', 'yyyy').replace('DD', 'dd'));
+  const formattedTime = format(eventDate, config.timeFormat);
 
   if (compact) {
     return (

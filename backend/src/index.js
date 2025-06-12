@@ -2,9 +2,12 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import Configuration from './models/Configuration.js';
 
 // Import routes
 import userRoutes from './routes/users.js';
+import eventRoutes from './routes/events.js';
+import configRoutes from './routes/config.js';
 
 dotenv.config();
 
@@ -27,6 +30,8 @@ const connectDB = async () => {
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/config', configRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -44,6 +49,8 @@ const PORT = process.env.PORT || 3001;
 const startServer = async () => {
     try {
         await connectDB();
+        // Ensure configuration exists when server starts
+        await Configuration.ensureSingle();
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         });
