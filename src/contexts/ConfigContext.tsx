@@ -12,7 +12,7 @@ interface ConfigContextType {
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
-const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
+export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
     const [config, setConfig] = useState<Configuration | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -62,8 +62,4 @@ export const useConfig = () => {
     return context;
 };
 
-export default ConfigProvider;
-        throw new Error('useConfig must be used within a ConfigProvider');
-    }
-    return context;
-};
+// Default export removed - using named export instead
